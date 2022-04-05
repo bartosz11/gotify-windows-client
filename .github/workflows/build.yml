@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Get source code
+        id: checkout
+        uses: actions/checkout@v2
+      - name: Check for CI skip
+        id: ci_skip_check
+        uses: mstachniuk/ci-skip@v1
+        with:
+          fail-fast: true
+      - name: Set up JDK 11
+        id: setup_env
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Set gradlew permissions
+        id: set_gradle_perms
+        run: chmod u+x gradlew
+      - name: Build with Gradle
+        id: gradle_build
+        uses: gradle/gradle-build-action@4137be6a8bf7d7133955359dbd952c0ca73b1021
+        with:
+          #Don't worry, works fine with JavaFX
+          arguments: shadowJar --no-daemon

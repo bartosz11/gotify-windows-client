@@ -17,7 +17,7 @@ dependencies {
     implementation 'org.json:json:20220320'
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.11'
-    implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.10'
+    implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.11'
 }
 
 test {

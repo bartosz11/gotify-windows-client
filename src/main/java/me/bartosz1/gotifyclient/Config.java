@@ -1,7 +1,5 @@
 package me.bartosz1.gotifyclient;
 
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -22,14 +20,12 @@ public class Config {
 
     private String url;
     private String key;
-    private WebSocketHandler ws;
-
+    private final MainClass main;
 
     public Config(Stage stage, MainClass main) {
-        ws = new WebSocketHandler(main, this);
+        this.main = main;
         if (!new File("config.properties").exists()) {
             firstTimeSetupForm(stage);
-            main.setWsHandler(ws);
         }
         else {
             Properties properties = new Properties();
@@ -37,8 +33,6 @@ public class Config {
                 properties.load(new FileReader("config.properties"));
                 url = properties.getProperty("url");
                 key = properties.getProperty("key");
-                main.setWsHandler(ws);
-                ws.start();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -50,7 +44,7 @@ public class Config {
         GridPane grid = new GridPane();
         grid.setAlignment(Pos.CENTER);
         Scene scene = new Scene(grid, 300, 275);
-        Label urLabel = new Label("Gotify URL");
+        Label urLabel = new Label("Gotify server URL");
         grid.add(urLabel, 1, 1);
         TextField urlField = new TextField();
         grid.add(urlField, 1, 2);
@@ -60,17 +54,15 @@ public class Config {
         grid.add(keyField, 1, 4);
         Button button = new Button("Submit");
         grid.add(button, 1, 5);
-        button.setOnAction(new EventHandler<ActionEvent>() {
-            @Override
-            public void handle(ActionEvent event) {
-                if (urlField.getText().isEmpty() || keyField.getText().isEmpty()) {
-                    showAlert(Alert.AlertType.ERROR, grid.getScene().getWindow(), "Form error", "Some field is null");
-                    return;
-                }
-                writeToConfig(urlField.getText(), keyField.getText());
-                stage.hide();
-                ws.start();
+        button.setOnAction(event -> {
+            if (urlField.getText().isEmpty() || keyField.getText().isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, grid.getScene().getWindow(), "Form error", "Some field is blank. Please fill all fields.");
+                return;
             }
+            writeToConfig(urlField.getText(), keyField.getText());
+            stage.hide();
+            main.setWebSocketHandler(new WebSocketHandler(main, url, key));
+            main.getWebSocketHandler().start();
         });
         stage.setScene(scene);
         stage.show();
@@ -88,12 +80,12 @@ public class Config {
     }
 
     private void writeToConfig(String url, String key) {
+        if (url.endsWith("/")) url = url.substring(0, url.length()-1);
         this.url = url;
         this.key = key;
-        File file = new File("config.properties");
         try {
+            File file = new File("config.properties");
             if (!file.exists()) file.createNewFile();
-            if (url.endsWith("/")) url = url.substring(0, url.length()-1);
             PrintWriter print = new PrintWriter("config.properties");
             print.println("url="+url);
             print.println("key="+key);

@@ -1,9 +1,6 @@
 package me.bartosz1.gotifyclient;
 
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
+import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -11,25 +8,43 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class WebSocketHandler extends WebSocketListener {
 
+    private static final OkHttpClient http = new OkHttpClient.Builder().readTimeout(10,TimeUnit.SECONDS).writeTimeout(10,TimeUnit.SECONDS).callTimeout(10,TimeUnit.SECONDS).connectTimeout(10,TimeUnit.SECONDS).build();
     private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketHandler.class);
     private final MainClass main;
-    private final Config config;
+    private final String url;
+    private final String key;
     private WebSocket socket;
+    private Request startReq;
+    private boolean isReconnecting = false;
+    private int reconnectAttempts = 0;
 
-    public WebSocketHandler(MainClass main, Config config) {
+    public WebSocketHandler(MainClass main, String url, String key) {
         this.main = main;
-        this.config = config;
+        this.url = url;
+        this.key = key;
     }
 
     public void start() {
-        Request req = new Request.Builder().url(config.getUrl()+"/stream").addHeader("x-gotify-key", config.getKey()).build();
-        main.getHttp().newWebSocket(req, this);
+        if (startReq == null) {
+            startReq = new Request.Builder().url(url+"/stream").addHeader("x-gotify-key", key).build();
+        }
+        http.newWebSocket(startReq, this);
     }
     @Override
     public void onOpen(WebSocket webSocket, Response response) {
+        if (isReconnecting) {
+            LOGGER.info("Reconnected to WebSocket.");
+            //just for those people getting triggered by wrong grammar / spelling or whatever
+            if (reconnectAttempts==1) main.getTray().displayMessage("Gotify - Reconnected after "+reconnectAttempts+" attempt.", "", TrayIcon.MessageType.INFO);
+            else main.getTray().displayMessage("Gotify - Reconnected after "+reconnectAttempts+" attempts.", "", TrayIcon.MessageType.INFO);
+            socket = webSocket;
+            isReconnecting = false;
+            return;
+        }
         LOGGER.info("WebSocket connection opened successfully!");
         main.getTray().displayMessage("Gotify - Connection opened successfully.", "", TrayIcon.MessageType.INFO);
         socket = webSocket;
@@ -52,15 +67,15 @@ public class WebSocketHandler extends WebSocketListener {
 
     @Override
     public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-        main.getTray().displayMessage("Gotify - Connection failure", t.getMessage(), TrayIcon.MessageType.INFO);
-        LOGGER.error("WebSocket failure:");
-        t.printStackTrace();
+        if (!isReconnecting) main.getTray().displayMessage("Gotify - Connection failure", "Next attempt in 30 seconds.", TrayIcon.MessageType.INFO);
+        LOGGER.error("WebSocket connection failure: "+t.getMessage());
+        reconnect();
     }
 
     private void updateAppList() {
-        Request req = new Request.Builder().url(config.getUrl()+"/application").addHeader("x-gotify-key", config.getKey()).build();
+        Request req = new Request.Builder().url(url+"/application").addHeader("x-gotify-key", key).build();
         try {
-            Response resp = main.getHttp().newCall(req).execute();
+            Response resp = http.newCall(req).execute();
             JSONArray array = new JSONArray(resp.body().string());
             main.getApps().clear();
             for (int i = 0; i < array.length(); i++) {
@@ -73,6 +88,18 @@ public class WebSocketHandler extends WebSocketListener {
     }
 
     public void close(){
-        socket.close(1000, "app exit");
+        if (socket != null) {
+            socket.close(1000, null);
+        }
+    }
+
+    private void reconnect(){
+        try {
+            isReconnecting = true;
+            reconnectAttempts++;
+            Thread.sleep(30000);
+            start();
+        } catch (Exception ignored) {}
+
     }
 }

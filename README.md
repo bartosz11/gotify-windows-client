@@ -4,6 +4,7 @@ Disclaimer: this app might run on systems other than Windows and was tested only
 ## Table of contents
 1. [Building](#building)
 2. [Using](#using)
+3. [Adding to autostart](#adding-to-autostart)
 
 ## Building
 

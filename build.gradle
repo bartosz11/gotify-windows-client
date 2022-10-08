@@ -4,8 +4,8 @@ plugins {
     id "com.github.johnrengelman.shadow" version "7.1.2"
 }
 
-group 'org.example'
-version '1.0-SNAPSHOT'
+group 'me.bartosz1'
+version '1.0'
 
 repositories {
     mavenCentral()
@@ -14,8 +14,8 @@ repositories {
 dependencies {
     implementation 'org.json:json:20220924'
     implementation 'com.squareup.okhttp3:okhttp:4.10.0'
-    implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.11'
-    implementation group: 'ch.qos.logback', name: 'logback-core', version: '1.2.11'
+    implementation 'ch.qos.logback:logback-classic:1.4.3'
+    implementation 'ch.qos.logback:logback-core:1.4.3'
 }
 
 test {
